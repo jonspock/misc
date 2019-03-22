@@ -27,9 +27,10 @@ int main(int argc, const char *argv[]) {
   const int ScaleFactor = (100-BudgetPerCent);
 
   const double cold_fraction = 0.75; // 75% setup for rewards
-  //std::vector<double> crpc = {15,13,11,9,7};
+  std::vector<double> crpc = {15,12,9,7,5};
+  //std::vector<double> crpc = {0};
   //  std::vector<double> crpc = {10,8,6,4,2};
-  std::vector<double> crpc = {12,10,8,6,4,2};
+  //std::vector<double> crpc = {12,10,8,6,4,2};
   //std::vector<double> crpc = {14,12,10,8,6};
   
   std::vector<double> x;
@@ -57,7 +58,9 @@ int main(int argc, const char *argv[]) {
       // 12 for months, 100 to convert % to fraction
       cr = ((cold_fraction*s)/12.0)*crpc[year_number]/100.0;
       if (i > 0) br = BudgetPerCent*r*nBlocksPerMonth/ScaleFactor;
-      std::cout << "cr[" << i/nBlocksPerMonth << "] = " << (int)cr/nBlocksPerMonth << " vs block = " << r << " budget = " << br/nBlocksPerMonth << "\n";
+      double sum = (cr+br)/nBlocksPerMonth + r;
+      std::cout << "cr[" << i/nBlocksPerMonth << "] = " << (int)cr/nBlocksPerMonth << " vs block = " << r
+                << " budget = " << br/nBlocksPerMonth << " sum = " << sum << "\n";
       s += cr;
       s += br;
     }
@@ -81,9 +84,16 @@ int main(int argc, const char *argv[]) {
   }
   rf.close();
 
-  plot_xy(x, supply, "supply per year (billions)");
-  plot_xy(x, rewards, "rewards per year (coins)");
-  plot_xy(x_inf, inflation, "inflation per year (%)");
+  std::stringstream ss;
+  ss << "(Cold ";
+  for (int i=0;i<crpc.size();i++) {
+      ss << crpc[i];
+      if (i<crpc.size()-1) ss << "/";
+      else ss << "%) ";
+  }
+  plot_xy(x, supply, ss.str()+"Total supply per year (billions)");
+  plot_xy(x, rewards, ss.str()+"Total rewards per year (coins)");
+  plot_xy(x_inf, inflation, ss.str()+"inflation per year (%)");
   
   return (0);
 }
