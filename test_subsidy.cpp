@@ -2,16 +2,18 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <vector>
+#include <sstream>
 
-int GetBlockSubsidy(int nHeight, int nPeakHeight, int nInitReward) {
+int GetBlockSubsidy(int nHeight, int nPeakHeight, int nInitReward, int nBlocksPerYear) {
   // Peak currently happens 1 year out
   int64_t nReward;
+  int64_t peak = (nInitReward) + int((nInitReward*nPeakHeight)/nBlocksPerYear);
 
   if (nHeight <= nPeakHeight) {
-    nReward = (nInitReward) +
-              int((2 * nInitReward * nHeight) / (nPeakHeight + nHeight));
+      nReward = (nInitReward) + int((2 * nInitReward * nHeight) / (3 * nPeakHeight + nHeight));
   } else {
-    nReward = int((2 * nInitReward * nPeakHeight) / nHeight);
+      nReward = nPeakHeight*peak/nHeight;
   }
   return nReward;
 }
@@ -21,7 +23,7 @@ int main(int argc, const char *argv[]) {
   const int nBlocksPerDay = 30 * 24; // 2 minute
   const int nBlocksPerMonth = nBlocksPerDay * 30;
   const int nBlocksPerYear = nBlocksPerDay * 365.25;
-  const int nPeak = 1.5 * nBlocksPerYear;
+  const int nPeak = 0.5 * nBlocksPerYear;
   const int nInitReward = 500;
   const double billion = 1000000000;
   const int BudgetPerCent = 45;
@@ -42,7 +44,7 @@ int main(int argc, const char *argv[]) {
   double br = 0;
 
   for (int i = 0; i < nBlocksPerYear * years; i++) {
-    int64_t r = GetBlockSubsidy(i, nPeak, nInitReward);
+    int64_t r = GetBlockSubsidy(i, nPeak, nInitReward, nBlocksPerYear);
 
     int64_t year_number = i / nBlocksPerYear;
     if (year_number > (crpc.size() - 1))
@@ -57,13 +59,21 @@ int main(int argc, const char *argv[]) {
       cr = ((cold_fraction * s) / 12.0) * crpc[year_number] / 100.0;
       if (i > 0)
         br = BudgetPerCent * r * nBlocksPerMonth / ScaleFactor;
+
       double sum = (cr + br) / nBlocksPerMonth + r;
+      s += cr;
+      s += br;
+      /*
       std::cout << "cr[" << i / nBlocksPerMonth
                 << "] = " << (int)cr / nBlocksPerMonth << " vs block = " << r
                 << " budget = " << br / nBlocksPerMonth << " sum = " << sum
+                << " supply = " << s
                 << "\n";
-      s += cr;
-      s += br;
+      */
+      //#define DUMP
+#ifdef DUMP
+          std::cout << i / nBlocksPerMonth << " " << r  << " " << sum << " " << s << "\n";
+#endif
     }
 
     r += (cr / nBlocksPerMonth);
