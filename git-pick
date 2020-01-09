@@ -1,0 +1,96 @@
+#!/usr/bin/env python
+
+import sys
+import subprocess as subp
+import re,string,commands
+
+#
+# Not sure why we need this + silent_call -> consolidate later
+#
+def exec_command(cmd):
+    string_cmd = " ".join(cmd)
+    try:
+        (retval,output) = commands.getstatusoutput(string_cmd)
+        if (retval and output) : 
+            print("Error for cmd:",string_cmd, "\n Output was ",output,"\n")
+        return retval
+    except:
+        print("Failed to run",string_cmd)
+        return -1
+
+def silent_call(cmd_list):
+    return subp.call(cmd_list, stdout=subp.PIPE, stderr=subp.PIPE)
+
+def current_directory_git_repo():
+    cmd = 'git status'.split()
+    return silent_call(cmd) == 0
+
+
+def git_branch(branch):
+    cmd = 'git show-ref --verify --quiet refs/heads/{0}'.format(branch).split()
+    return silent_call(cmd) == 0
+
+
+def get_commits(branch, start):
+    cmd = 'git log {0} ^HEAD --no-merges --oneline'.format(branch).split()
+    string_cmd = " ".join(cmd)
+    (retval,out) = commands.getstatusoutput(string_cmd)
+    lines = out.rstrip().split('\n')
+
+    def split_head(s):
+        split = s.split()
+        return (split[0], ' '.join(split[1:]))
+
+    commits = [split_head(s) for s in lines if s != '']
+
+    # Get list upto matching point,
+    # if we dont find match, assume no updates
+    commit_list = []
+    for commit, message in commits:
+        if (commit != start):
+            commit_list.append((commit,message))
+        else:
+            #print " Found commit ", commit, " vs " , start
+            commit_list.append((commit,message))
+            return commit_list
+    return []
+
+#
+# Attempt to cherry-pick or abort
+#
+def cherry_pick(commit_plus):
+    (commit,message) = commit_plus
+    cmd = 'git cherry-pick {0}'.format(commit).split()
+    if silent_call(cmd) == 0:
+        print("Picked {0} : {1} successfully".format(commit,message))
+    else:
+        #print("Could not pick {0}. will abort".format(commit))
+        abort_cmd = ['git','cherry-pick','--abort']
+        exec_command(abort_cmd)
+
+
+if __name__ == '__main__':
+    
+    if not current_directory_git_repo():
+        sys.exit("Current directory is not a Git repository")
+
+    if len(sys.argv) < 2:
+        sys.exit("No branch to cherry pick from is given")
+
+    if len(sys.argv) < 3:
+        sys.exit("No starting point to cherry pick from is given")
+
+    branch = sys.argv[1]
+    start = sys.argv[2]
+    
+    if not git_branch(branch):
+        sys.exit("{0} is not a valid branch".format(branch))
+
+    commit_list = get_commits(branch,start)
+
+    if not commit_list:
+        sys.exit("No commits to pick found")
+
+    for commit_plus in reversed(commit_list):
+        cherry_pick(commit_plus)
+
